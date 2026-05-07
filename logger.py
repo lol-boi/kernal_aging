@@ -1,22 +1,12 @@
 import csv
 import os
 from datetime import datetime
+import config
 
 class Logger:
     def __init__(self, filename="aging_log.csv"):
         self.filename = filename
-        self.headers = [
-            "Timestamp", 
-            "MemFree", 
-            "Slab_Unreclaimable", 
-            "Slab_Reclaimable",
-            "Slab_Active_Objs",
-            "Slab_Total_Objs",
-            "Frag_Index_Order_0", 
-            "Frag_Index_Order_10", 
-            "Context_Switches",
-            "Benchmark_Latency"
-        ]
+        self.headers = config.REQUIRED_CSV_HEADERS
         self._initialize_csv()
 
     def _initialize_csv(self):

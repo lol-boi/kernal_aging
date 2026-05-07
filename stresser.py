@@ -110,20 +110,31 @@ class Stresser:
         except KeyboardInterrupt:
             print("Stopping stresser...")
 
+import config
+
 class LeakingStresser:
     """Stresser that keeps memory allocated until cleared to simulate persistent aging."""
     def __init__(self):
         self.leaked = []
+        self.total_leaked_mb = 0
 
     def leak(self, mb=100):
+        if self.total_leaked_mb >= config.MAX_LEAK_CEILING_MB:
+            print(f"Leak ceiling reached ({config.MAX_LEAK_CEILING_MB} MB). Skipping leak.")
+            return
+
         print(f"Leaking {mb}MB of memory...")
         # Allocate in 1MB chunks to ensure fragmentation
         for _ in range(mb):
+            if self.total_leaked_mb >= config.MAX_LEAK_CEILING_MB:
+                break
             self.leaked.append(ctypes.create_string_buffer(1024 * 1024))
+            self.total_leaked_mb += 1
 
     def clear(self):
         print("Clearing leaked memory...")
         self.leaked.clear()
+        self.total_leaked_mb = 0
 
 if __name__ == "__main__":
     stresser = Stresser()

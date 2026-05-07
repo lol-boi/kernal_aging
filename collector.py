@@ -100,7 +100,8 @@ class Collector:
         latency = 0.0
         if run_benchmark and self.engine:
             # Use injected engine
-            latency = self.engine.run_benchmark(iterations=1000000)
+            import config
+            latency = self.engine.run_benchmark(iterations=config.BENCHMARK_ITERATIONS)
 
         combined_data = {
             **mem_data, 

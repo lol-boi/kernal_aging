@@ -1,22 +1,37 @@
 import csv
 import time
 import os
+import config
+import random
 
 class DetectionEngine:
     def __init__(self, log_file="aging_log.csv"):
         self.log_file = log_file
         self.baseline_latency = None
-        self.frag_threshold = 0.75
-        self.latency_multiplier = 1.1
+        self.frag_threshold = config.FRAG_THRESHOLD
+        self.latency_multiplier = config.LATENCY_MULTIPLIER
 
-    def run_benchmark(self, iterations=1000000):
-        """Standard memory performance benchmark."""
-        print("Running memory benchmark...")
+    def run_benchmark(self, iterations=None):
+        """
+        Improved memory performance benchmark.
+        Allocates multiple scattered buffers to force cache misses and 
+        diagnostic sensitivity to memory fragmentation.
+        """
+        if iterations is None:
+            iterations = config.BENCHMARK_ITERATIONS
+        print("Running diagnostic memory benchmark...")
+        # Allocate scattered buffers
+        num_buffers = 100
+        buffer_size = 1024 * 10 # 10KB each
+        buffers = [bytearray(os.urandom(buffer_size)) for _ in range(num_buffers)]
+        
         start_time = time.time()
-        # Create a large list and perform random access
-        data = [i for i in range(100000)]
         for _ in range(iterations):
-            _ = data[(_ * 7) % 100000]
+            # Randomly jump between buffers and offsets
+            b_idx = random.randint(0, num_buffers - 1)
+            o_idx = random.randint(0, buffer_size - 1)
+            _ = buffers[b_idx][o_idx]
+            
         end_time = time.time()
         latency = end_time - start_time
         print(f"Benchmark Latency: {latency:.4f}s")
@@ -34,7 +49,6 @@ class DetectionEngine:
         100 = Perfect Health, < 50 = Critical Aging.
         """
         # 1. Fragmentation Penalty (up to 40 points)
-        # 0.0 frag = 0 penalty, 1.0 frag = 40 penalty
         frag_penalty = frag_index * 40
         
         # 2. Performance Penalty (up to 30 points)
@@ -42,15 +56,29 @@ class DetectionEngine:
         if self.baseline_latency and latency > 0:
             ratio = latency / self.baseline_latency
             if ratio > 1:
-                # 1.5x latency = 30 point penalty
-                perf_penalty = min(30, (ratio - 1) * 60)
+                # Use multiplier from config
+                perf_penalty = min(30, (ratio - 1) * (30 / (self.latency_multiplier - 1)))
         
         # 3. Slab Bloat Penalty (up to 30 points)
-        # Assume > 500MB unreclaimable is bad for small systems
-        slab_penalty = min(30, (slab_unreclaimable / 512000) * 30)
+        slab_penalty = min(30, (slab_unreclaimable / config.SLAB_PENALTY_CEILING_KB) * 30)
         
         score = 100 - (frag_penalty + perf_penalty + slab_penalty)
         return max(0, round(score, 2))
+
+    def send_alert(self, message):
+        """Sends an alert via HTTP POST if a webhook is configured."""
+        if config.ALERT_WEBHOOK_URL:
+            import urllib.request
+            import json
+            try:
+                data = json.dumps({"alert": message, "timestamp": time.time()}).encode('utf-8')
+                req = urllib.request.Request(config.ALERT_WEBHOOK_URL, data=data, 
+                                            headers={'Content-Type': 'application/json'})
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    pass
+                print(f"Alert sent to {config.ALERT_WEBHOOK_URL}")
+            except Exception as e:
+                print(f"Failed to send alert: {e}")
 
     def analyze_logs(self):
         """Checks if current state is 'Aged'."""
@@ -85,7 +113,9 @@ class DetectionEngine:
         print(f"Status: {status}")
         
         if is_aged:
-            print("!!! ALERT: KERNEL SOFTWARE AGING DETECTED !!!")
+            msg = "!!! ALERT: KERNEL SOFTWARE AGING DETECTED !!!"
+            print(msg)
+            self.send_alert(msg)
         
         return is_aged
 

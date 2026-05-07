@@ -28,8 +28,8 @@ sleep 3
 
 # 5. Perform Rejuvenation
 echo "[5/6] Triggering Software Rejuvenation (The Fix)..."
-# Using the provided password 'guts'
-echo "guts" | sudo -S python3 main.py rejuvenate
+echo "      (Root privileges required for rejuvenation)"
+sudo python3 main.py rejuvenate
 sleep 5 # Let kernel settle
 
 # 6. Finalize and Visualize

@@ -18,12 +18,15 @@ class ExperimentManager:
 
     def run_accelerated_life_test(self, log_file, duration_sec=60, auto_fix=False):
         print(f"Starting ALT (Auto-Fix: {auto_fix}) -> {log_file}")
-        collector = Collector(sampling_rate=2, log_file=log_file)
+        
+        # Create engine first to inject into collector
+        engine = DetectionEngine(log_file=log_file)
+        
+        collector = Collector(sampling_rate=2, log_file=log_file, engine=engine)
         collector.auto_fix = auto_fix
         
         # Use persistent stress for clearer aging/rejuvenation curves
         leaker = LeakingStresser()
-        engine = DetectionEngine(log_file=log_file)
         
         # 1. Establish Baseline (Fresh State)
         print("Establishing baseline...")
@@ -40,11 +43,22 @@ class ExperimentManager:
             if auto_fix:
                 if engine.analyze_logs():
                     print("!!! Triggering Rejuvenation !!!")
-                    rej = Rejuvenator(log_file=log_file)
-                    # For the experiment, we also clear our artificial leak 
-                    # to simulate the "release" of resources.
-                    leaker.clear()
-                    rej.run_rejuvenation()
+                    rej = Rejuvenator(collector=collector, engine=engine, log_file=log_file)
+                    
+                    # Fix 2: Pause stresser during rejuvenation window
+                    print("Pausing stresser (Fix 2)...")
+                    # In this synchronous loop, we simply stop calling leak() 
+                    # while rejuvenation runs inside the block.
+                    
+                    # Fix 4: Define a restart function to simulate service restart
+                    def restart_leaky_service():
+                        print("Fix 4: Simulating Service Restart - Clearing Leaks...")
+                        leaker.clear()
+                    
+                    # Run the advanced rejuvenation
+                    rej.run_rejuvenation(stresser_restart_func=restart_leaky_service)
+                    
+                    print("Resuming stresser...")
             
             time.sleep(2)
         
@@ -63,10 +77,10 @@ class ExperimentManager:
     def run_comparison_suite(self):
         """Runs both Baseline (Aging) and Managed (Rejuvenation) scenarios."""
         # 1. Baseline: Aging without help
-        self.run_accelerated_life_test(self.baseline_log, duration_sec=30, auto_fix=False)
+        self.run_accelerated_life_test(self.baseline_log, duration_sec=60, auto_fix=False)
         
         # 2. Managed: Aging with rejuvenation
-        self.run_accelerated_life_test(self.managed_log, duration_sec=30, auto_fix=True)
+        self.run_accelerated_life_test(self.managed_log, duration_sec=60, auto_fix=True)
         
         print("\n--- EXPERIMENT RESULTS ---")
         self.validate_predictive_accuracy(self.baseline_log)

@@ -51,7 +51,8 @@ def show_status(args):
                 baseline = lat
             last_latency = lat
             
-    engine.baseline_latency = baseline if baseline else 0.5
+    import config
+    engine.baseline_latency = baseline if baseline else 0.5 # Default fallback
     current_lat = float(latest.get('Benchmark_Latency', 0.0))
     if current_lat == 0:
         current_lat = last_latency
