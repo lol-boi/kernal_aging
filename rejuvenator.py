@@ -4,10 +4,13 @@ from collector import Collector
 from engine import DetectionEngine
 
 class Rejuvenator:
-    def __init__(self, log_file="aging_log.csv"):
+    def __init__(self, collector=None, engine=None, log_file="aging_log.csv"):
         self.log_file = log_file
-        self.collector = Collector(log_file=log_file)
-        self.engine = DetectionEngine(log_file=log_file)
+        # Dependency Injection
+        from collector import Collector
+        from engine import DetectionEngine
+        self.collector = collector if collector else Collector(log_file=log_file)
+        self.engine = engine if engine else DetectionEngine(log_file=log_file)
 
     def _is_root(self):
         return os.getuid() == 0

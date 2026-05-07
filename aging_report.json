@@ -588,19 +588,5 @@
         "Frag_Index_Order_10": "0.8861",
         "Context_Switches": "338515797",
         "Benchmark_Latency": "0.07969951629638672"
-    },
-    {
-        "Timestamp": "2026-05-05T23:00:20.840859",
-        "MemFree": "667096",
-        "Slab_Unreclaimable": "127180",
-        "Slab_Reclaimable": "93244",
-        "Frag_Index_Order_0": "0",
-        "Frag_Index_Order_10": "0",
-        "Context_Switches": "0.7916",
-        "Benchmark_Latency": "0.7916",
-        "null": [
-            "808924740",
-            "0.05689501762390137"
-        ]
     }
 ]

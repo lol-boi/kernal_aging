@@ -3,10 +3,11 @@ import os
 from logger import Logger
 
 class Collector:
-    def __init__(self, sampling_rate=5, log_file="aging_log.csv"):
+    def __init__(self, sampling_rate=5, log_file="aging_log.csv", engine=None):
         self.sampling_rate = sampling_rate
         self.logger = Logger(log_file)
         self.auto_fix = False
+        self.engine = engine # Inject engine to avoid runtime imports
 
     def get_meminfo(self):
         """Parse /proc/meminfo for MemFree, SUnreclaim, and SReclaimable."""
@@ -97,11 +98,9 @@ class Collector:
         ctxt_switches = self.get_context_switches()
         
         latency = 0.0
-        if run_benchmark:
-            from engine import DetectionEngine
-            engine = DetectionEngine(log_file=self.logger.filename)
-            # Match iterations with engine baseline (1,000,000)
-            latency = engine.run_benchmark(iterations=1000000)
+        if run_benchmark and self.engine:
+            # Use injected engine
+            latency = self.engine.run_benchmark(iterations=1000000)
 
         combined_data = {
             **mem_data, 
@@ -113,20 +112,18 @@ class Collector:
         self.logger.log(combined_data)
         return combined_data
 
-    def start(self):
+    def start(self, rejuvenator=None):
         print(f"Starting collection every {self.sampling_rate} seconds...")
         
-        # Initialize engine and rejuvenator if auto_fix is true
-        engine = None
-        rejuvenator = None
-        if self.auto_fix:
-            print("Auto-fix mode is ENABLED.")
+        # Ensure engine is set if auto_fix is enabled
+        if self.auto_fix and not self.engine:
             from engine import DetectionEngine
+            self.engine = DetectionEngine(log_file=self.logger.filename)
+            self.engine.set_baseline()
+
+        if self.auto_fix and not rejuvenator:
             from rejuvenator import Rejuvenator
-            engine = DetectionEngine(log_file=self.logger.filename)
-            # Need a baseline for engine analysis
-            engine.set_baseline()
-            rejuvenator = Rejuvenator(log_file=self.logger.filename)
+            rejuvenator = Rejuvenator(collector=self, engine=self.engine, log_file=self.logger.filename)
 
         sample_count = 0
         try:
@@ -137,8 +134,8 @@ class Collector:
                 data = self.collect_once(run_benchmark=should_bench)
                 print(f"Collected: {data}")
                 
-                if self.auto_fix and engine and rejuvenator:
-                    if engine.analyze_logs():
+                if self.auto_fix and self.engine and rejuvenator:
+                    if self.engine.analyze_logs():
                         print("!!! AUTO-FIX TRIGGERED !!!")
                         rejuvenator.run_rejuvenation()
                         

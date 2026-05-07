@@ -40,11 +40,25 @@ def show_status(args):
     
     # Calculate Health Score
     engine = DetectionEngine()
-    # Try to find baseline in logs or set a dummy
-    engine.baseline_latency = 0.5 # Default fallback
+    
+    # Bug 3 Fix: Find real baseline and latest non-zero latency
+    baseline = None
+    last_latency = 0.0
+    for row in rows:
+        lat = float(row.get('Benchmark_Latency', 0.0))
+        if lat > 0:
+            if baseline is None:
+                baseline = lat
+            last_latency = lat
+            
+    engine.baseline_latency = baseline if baseline else 0.5
+    current_lat = float(latest.get('Benchmark_Latency', 0.0))
+    if current_lat == 0:
+        current_lat = last_latency
+    
     score = engine.calculate_health_score(
         float(latest['Frag_Index_Order_0']),
-        float(latest['Benchmark_Latency']),
+        current_lat,
         float(latest['Slab_Unreclaimable'])
     )
     
@@ -54,6 +68,8 @@ def show_status(args):
     print(f"MemFree: {latest['MemFree']} kB")
     print(f"Slab_Unreclaimable: {latest['Slab_Unreclaimable']} kB")
     print(f"Frag Index: {latest['Frag_Index_Order_0']}")
+    if current_lat > 0:
+        print(f"Latest Latency: {current_lat:.4f}s (Baseline: {engine.baseline_latency:.4f}s)")
 
 def generate_report(args):
     if not os.path.exists("aging_log.csv"):

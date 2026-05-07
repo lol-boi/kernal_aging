@@ -46,12 +46,19 @@ class Logger:
     def log(self, data):
         """
         Appends a row to the CSV log.
-        :param data: Dictionary containing keys matching self.headers.
+        Ensures only keys matching self.headers are logged.
+        :param data: Dictionary containing telemetry data.
         """
         data["Timestamp"] = datetime.now().isoformat()
+        
+        # Create a filtered dict with only valid headers, filling missing with 0.0
+        row = {}
+        for h in self.headers:
+            row[h] = data.get(h, 0.0)
+            
         with open(self.filename, mode='a', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=self.headers)
-            writer.writerow(data)
+            writer.writerow(row)
 
 if __name__ == "__main__":
     # Quick test
