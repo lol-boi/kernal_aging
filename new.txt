@@ -1,0 +1,25 @@
+## Week 6: Interface Development and Integration
+**Objective:** To transition the framework from a backend daemon to a user-interactive system.
+* **CLI Implementation:** Develop a command-line interface using `argparse` or `rich` to allow users to query real-time kernel health.
+* **Dashboard Logic:** Create a status dashboard that displays current memory fragmentation indices and slab cache utilization.
+* **Unified Integration:** Link the Data Collection Daemon (Week 3) and the Detection Engine (Week 5) under a single management script.
+
+## Week 7: Predictive Analysis & Visualization
+**Objective:** To implement trend-based detection and visual health reporting.
+* **Predictive Modeling:** Implement linear regression or moving average algorithms to estimate the "Time-to-Critical-Aging" based on historical logs.
+* **Data Visualization:** Develop a visualization module to export `.png` or `.pdf` charts showing the correlation between system uptime and performance degradation.
+* **Trend Analysis:** Identify the rate of change in unreclaimable slabs to distinguish between normal load spikes and actual software aging.
+
+## Week 8: Software Rejuvenation Engine
+**Objective:** To close the loop by implementing automated mitigation strategies.
+* **Trigger Mechanism:** Program the framework to automatically execute rejuvenation commands when the Aging Index exceeds the defined threshold.
+* **Rejuvenation Strategies:**
+    * **Memory Defragmentation:** Implement triggers for `/proc/sys/vm/compact_memory`.
+    * **Cache Rejuvenation:** Implement selective clearing of pagecaches and dentries via `/proc/sys/vm/drop_caches`.
+* **Verification Logic:** Develop a post-rejuvenation audit to measure the immediate "Performance Gain" and verify the drop in the fragmentation index.
+
+## Week 9: System Validation & Final Reporting
+**Objective:** To ensure framework reliability and finalize academic documentation.
+* **Multi-Workload Testing:** Validate the framework against different stress scenarios (Database I/O stress vs. High-Process creation stress).
+* **Overhead Measurement:** Conduct a performance audit to ensure the framework's CPU/RAM footprint remains below 2% to avoid interfering with system vitals.
+* **Report Finalization:** Compile the "Results and Discussion" chapter, including the "Before vs. After" rejuvenation benchmarks and aging trend graphs for the final presentation.

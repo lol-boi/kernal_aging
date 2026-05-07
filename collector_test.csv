@@ -1,0 +1,3 @@
+Timestamp,MemFree,Slab_Unreclaimable,Slab_Reclaimable,Frag_Index_Order_0,Frag_Index_Order_10,Context_Switches,Benchmark_Latency
+2026-04-14T08:15:59.702415,589896,118224,47184,0.7865,0.7865,302368215,0.0
+2026-05-05T23:00:20.358357,762436,127196,93228,0,0,0.8176,0.8176,808921354,0.0
