@@ -63,9 +63,19 @@ def show_status(args):
         float(latest['Slab_Unreclaimable'])
     )
     
+    # Tier 2: Color Coding
+    # ANSI Color Codes: Green=32, Amber=33, Red=31
+    color_code = "32" # Default Green
+    if score < 50:
+        color_code = "31" # Red
+    elif score < 75:
+        color_code = "33" # Amber
+        
+    colored_score = f"\033[1;{color_code}m{score}/100\033[0m"
+    
     print(f"--- System Status ---")
     print(f"Timestamp: {latest['Timestamp']}")
-    print(f"Kernel Health Score: {score}/100")
+    print(f"Kernel Health Score: {colored_score}")
     print(f"MemFree: {latest['MemFree']} kB")
     print(f"Slab_Unreclaimable: {latest['Slab_Unreclaimable']} kB")
     print(f"Frag Index: {latest['Frag_Index_Order_0']}")

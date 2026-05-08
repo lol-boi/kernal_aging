@@ -1,13 +1,14 @@
 import time
 import os
 import csv
+import signal
+import subprocess
+import sys
 from collector import Collector
 from engine import DetectionEngine
 from stresser import Stresser
 from rejuvenator import Rejuvenator
 from analyzer import AgingAnalyzer
-
-from stresser import Stresser, LeakingStresser
 
 class ExperimentManager:
     """Automates validation experiments required by the Readiness Audit."""
@@ -15,54 +16,86 @@ class ExperimentManager:
     def __init__(self, baseline_log="baseline_exp.csv", managed_log="managed_exp.csv"):
         self.baseline_log = baseline_log
         self.managed_log = managed_log
+        self.stresser_process = None
+
+    def start_external_stresser(self, scenario="default"):
+        """Fix 4: Spawn stresser as an external process for real restart/signals."""
+        print(f"Spawning external stresser: {scenario}")
+        # We'll use a simple python command that leaks memory or stresses IO
+        # to ensure we can control it via signals.
+        # If we want a leaky one specifically for Fix 4:
+        if scenario == "leaky":
+            # Use a newline (\n) before the while loop to fix the SyntaxError
+            code = f"import ctypes,time,os;l=[];print(f'Leaky worker {{os.getpid()}} started')\n" \
+                   f"while True:l.append(ctypes.create_string_buffer(50*1024*1024));time.sleep(2)"
+            cmd = [sys.executable, "-c", code]
+        else:
+            cmd = [sys.executable, "stresser.py"]
+            
+        self.stresser_process = subprocess.Popen(cmd)
+        return self.stresser_process.pid
+
+    def stop_external_stresser(self):
+        if self.stresser_process:
+            try:
+                self.stresser_process.terminate()
+                self.stresser_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.stresser_process.kill()
+            self.stresser_process = None
 
     def run_accelerated_life_test(self, log_file, duration_sec=60, auto_fix=False):
         print(f"Starting ALT (Auto-Fix: {auto_fix}) -> {log_file}")
         
         # Create engine first to inject into collector
         engine = DetectionEngine(log_file=log_file)
-        
         collector = Collector(sampling_rate=2, log_file=log_file, engine=engine)
         collector.auto_fix = auto_fix
-        
-        # Use persistent stress for clearer aging/rejuvenation curves
-        leaker = LeakingStresser()
         
         # 1. Establish Baseline (Fresh State)
         print("Establishing baseline...")
         engine.set_baseline()
         
-        start_time = time.time()
-        while time.time() - start_time < duration_sec:
-            # Gradually leak memory to induce aging
-            leaker.leak(mb=50)
-            
-            # Record state
-            data = collector.collect_once(run_benchmark=True)
-            
-            if auto_fix:
-                if engine.analyze_logs():
-                    print("!!! Triggering Rejuvenation !!!")
-                    rej = Rejuvenator(collector=collector, engine=engine, log_file=log_file)
-                    
-                    # Fix 2: Pause stresser during rejuvenation window
-                    print("Pausing stresser (Fix 2)...")
-                    # In this synchronous loop, we simply stop calling leak() 
-                    # while rejuvenation runs inside the block.
-                    
-                    # Fix 4: Define a restart function to simulate service restart
-                    def restart_leaky_service():
-                        print("Fix 4: Simulating Service Restart - Clearing Leaks...")
-                        leaker.clear()
-                    
-                    # Run the advanced rejuvenation
-                    rej.run_rejuvenation(stresser_restart_func=restart_leaky_service)
-                    
-                    print("Resuming stresser...")
-            
-            time.sleep(2)
+        # Start the "service" that will age
+        self.start_external_stresser(scenario="leaky")
         
-        leaker.clear()
+        start_time = time.time()
+        try:
+            while time.time() - start_time < duration_sec:
+                # Record state
+                data = collector.collect_once(run_benchmark=True)
+                
+                if auto_fix:
+                    if engine.analyze_logs():
+                        print("!!! Triggering Rejuvenation !!!")
+                        rej = Rejuvenator(collector=collector, engine=engine, log_file=log_file)
+                        
+                        # Fix 2: Pause stresser during rejuvenation window
+                        if self.stresser_process:
+                            print(f"Pausing stresser {self.stresser_process.pid} (Fix 2: SIGSTOP)...")
+                            os.kill(self.stresser_process.pid, signal.SIGSTOP)
+                        
+                        # Fix 4: Define a real restart function
+                        def restart_leaky_service():
+                            print("Fix 4: Killing leaky service...")
+                            self.stop_external_stresser()
+                            time.sleep(1)
+                            print("Fix 4: Restarting leaky service...")
+                            self.start_external_stresser(scenario="leaky")
+                            # Give it a moment to initialize
+                            time.sleep(1)
+                        
+                        # Run the advanced rejuvenation
+                        rej.run_rejuvenation(stresser_restart_func=restart_leaky_service)
+                        
+                        if self.stresser_process:
+                            print(f"Resuming stresser {self.stresser_process.pid} (Fix 2: SIGCONT)...")
+                            os.kill(self.stresser_process.pid, signal.SIGCONT)
+                
+                time.sleep(2)
+        finally:
+            self.stop_external_stresser()
+            
         print(f"ALT Complete: {log_file}")
 
     def validate_predictive_accuracy(self, log_file):

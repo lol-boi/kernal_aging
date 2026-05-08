@@ -18,6 +18,42 @@ class AgingVisualizer:
         start_time = data["timestamps"][0]
         norm_timestamps = [ts - start_time for ts in data["timestamps"]]
 
+        # 0. Health Score vs. Time (Tier 2 Enhancement)
+        engine = AgingAnalyzer.engine if hasattr(AgingAnalyzer, 'engine') else None
+        if not engine:
+            from engine import DetectionEngine
+            engine = DetectionEngine()
+            
+        # Calculate baseline from first few benchmark entries if possible
+        baseline = 0.5
+        for lat in data["latency"]:
+            if lat > 0:
+                baseline = lat
+                break
+        engine.baseline_latency = baseline
+
+        health_scores = []
+        for i in range(len(data["timestamps"])):
+            score = engine.calculate_health_score(
+                data["frag_index"][i],
+                data["latency"][i],
+                data["slab_unreclaimable"][i]
+            )
+            health_scores.append(score)
+
+        plt.figure(figsize=(10, 5))
+        plt.plot(norm_timestamps, health_scores, label="Kernel Health Score", color='green', linewidth=2)
+        plt.axhline(y=75, color='orange', linestyle='--', alpha=0.5, label="Amber Threshold")
+        plt.axhline(y=50, color='red', linestyle='--', alpha=0.5, label="Critical Threshold")
+        plt.title("Kernel Health Score over Time")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Health Score (0-100)")
+        plt.ylim(0, 105)
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        plt.savefig("health_score_plot.png")
+        print("Saved health_score_plot.png")
+
         # 1. Fragmentation vs. Time
         plt.figure(figsize=(10, 5))
         plt.plot(norm_timestamps, data["frag_index"], label="Frag Index", color='red')

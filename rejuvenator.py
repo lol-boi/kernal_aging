@@ -15,16 +15,20 @@ class Rejuvenator:
     def _is_root(self):
         return os.getuid() == 0
 
-    def drop_caches(self, level=3):
-        """1: pagecache, 2: dentries/inodes, 3: all."""
+    def drop_caches(self):
+        """Fix 1: Target slab reclaim more aggressively."""
         if not self._is_root():
             print("ERROR: Rejuvenation requires root privileges (sudo).")
             return False
         
-        print(f"Executing Strategy A: drop_caches (level {level})...")
+        print(f"Executing Strategy A: Aggressive drop_caches sequence (Fix 1)...")
         try:
+            # Sequence from Fix 1: echo 2, then sysctl 3
             with open("/proc/sys/vm/drop_caches", "w") as f:
-                f.write(str(level))
+                f.write("2")
+            
+            import subprocess
+            subprocess.run(["sysctl", "-w", "vm.drop_caches=3"], check=True)
             return True
         except Exception as e:
             print(f"Failed to drop caches: {e}")
@@ -32,13 +36,18 @@ class Rejuvenator:
 
     def force_slab_reclaim(self, size_mb=500):
         """Fix 1: Induce slab shrinkage via transient memory pressure."""
-        print(f"Inducing Slab Reclaim via {size_mb}MB pressure...")
+        print(f"Inducing Slab Reclaim via {size_mb}MB pressure (Fix 1)...")
         try:
             # Allocate a large buffer to force kernel to reclaim slab
             import ctypes
-            pressure_buffer = ctypes.create_string_buffer(size_mb * 1024 * 1024)
-            time.sleep(1) # Hold briefly
-            del pressure_buffer # Free it
+            # We use a list of smaller chunks to ensure we actually touch the memory
+            # and it's not just lazy-allocated.
+            chunks = []
+            for _ in range(size_mb):
+                chunks.append(ctypes.create_string_buffer(1024 * 1024))
+            
+            time.sleep(2) # Hold briefly to let kernel feel the pressure
+            del chunks # Free it
             return True
         except Exception as e:
             print(f"Slab reclaim pressure failed: {e}")
@@ -87,7 +96,7 @@ class Rejuvenator:
         before_bench = before["Benchmark_Latency"]
 
         # 2. Rejuvenate
-        if self.drop_caches(3):
+        if self.drop_caches():
             # Fix 1: Pressure reclaim
             self.force_slab_reclaim(500)
             

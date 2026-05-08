@@ -13,24 +13,28 @@ class DetectionEngine:
 
     def run_benchmark(self, iterations=None):
         """
-        Improved memory performance benchmark.
-        Allocates multiple scattered buffers to force cache misses and 
-        diagnostic sensitivity to memory fragmentation.
+        Refined memory performance benchmark (Tier 2).
+        Allocates ~500 random-sized buffers across the heap and accesses them 
+        randomly to increase sensitivity to memory fragmentation.
         """
         if iterations is None:
             iterations = config.BENCHMARK_ITERATIONS
-        print("Running diagnostic memory benchmark...")
-        # Allocate scattered buffers
-        num_buffers = 100
-        buffer_size = 1024 * 10 # 10KB each
-        buffers = [bytearray(os.urandom(buffer_size)) for _ in range(num_buffers)]
+        print("Running diagnostic memory benchmark (Refined)...")
         
+        # 1. Allocate 500 buffers of random sizes (4KB to 64KB)
+        num_buffers = 500
+        buffers = []
+        for _ in range(num_buffers):
+            size = random.randint(4096, 65536)
+            buffers.append(bytearray(os.urandom(size)))
+        
+        # 2. Randomly access them
         start_time = time.time()
         for _ in range(iterations):
-            # Randomly jump between buffers and offsets
             b_idx = random.randint(0, num_buffers - 1)
-            o_idx = random.randint(0, buffer_size - 1)
-            _ = buffers[b_idx][o_idx]
+            buf = buffers[b_idx]
+            o_idx = random.randint(0, len(buf) - 1)
+            _ = buf[o_idx]
             
         end_time = time.time()
         latency = end_time - start_time

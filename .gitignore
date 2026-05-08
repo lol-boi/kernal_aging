@@ -1,0 +1,45 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Data and Logs
+*.csv
+*.json
+aging_log.csv
+aging_report.json
+baseline_exp.csv
+managed_exp.csv
+overhead_audit.csv
+collector_test.csv
+db_showcase.csv
+leak_showcase.csv
+web_showcase.csv
+
+# Plots and Images
+*.png
+fragmentation_plot.png
+slab_health_plot.png
+correlation_plot.png
+health_score_plot.png
+db_corr.png
+db_frag.png
+db_slab.png
+leak_corr.png
+leak_frag.png
+leak_slab.png
+web_corr.png
+web_frag.png
+web_slab.png
+
+# Results directory
+results/
+
+# Temporary and local files
+test_file.*
+new.txt
+.env
+
+# Documents
+*.pdf
+Project_Readiness_Audit.pdf
