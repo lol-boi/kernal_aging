@@ -18,7 +18,7 @@ class ExperimentManager:
         self.managed_log = managed_log
         self.stresser_process = None
 
-    def start_external_stresser(self, scenario="default"):
+    def start_external_stresser(self, scenario="database"):
         """Fix 4: Spawn stresser as an external process for real restart/signals."""
         print(f"Spawning external stresser: {scenario}")
         # We'll use a simple python command that leaks memory or stresses IO
@@ -30,7 +30,8 @@ class ExperimentManager:
                    f"while True:l.append(ctypes.create_string_buffer(50*1024*1024));time.sleep(2)"
             cmd = [sys.executable, "-c", code]
         else:
-            cmd = [sys.executable, "stresser.py"]
+            # For database, process, etc., we call stresser.py directly
+            cmd = [sys.executable, "stresser.py", "--scenario", scenario]
             
         self.stresser_process = subprocess.Popen(cmd)
         return self.stresser_process.pid
@@ -44,8 +45,8 @@ class ExperimentManager:
                 self.stresser_process.kill()
             self.stresser_process = None
 
-    def run_accelerated_life_test(self, log_file, duration_sec=60, auto_fix=False):
-        print(f"Starting ALT (Auto-Fix: {auto_fix}) -> {log_file}")
+    def run_accelerated_life_test(self, log_file, duration_sec=600, auto_fix=False, scenario="database"):
+        print(f"Starting ALT (Auto-Fix: {auto_fix}, Scenario: {scenario}) -> {log_file}")
         
         # Create engine first to inject into collector
         engine = DetectionEngine(log_file=log_file)
@@ -57,7 +58,7 @@ class ExperimentManager:
         engine.set_baseline()
         
         # Start the "service" that will age
-        self.start_external_stresser(scenario="leaky")
+        self.start_external_stresser(scenario=scenario)
         
         start_time = time.time()
         try:
@@ -77,11 +78,11 @@ class ExperimentManager:
                         
                         # Fix 4: Define a real restart function
                         def restart_leaky_service():
-                            print("Fix 4: Killing leaky service...")
+                            print(f"Fix 4: Killing {scenario} service...")
                             self.stop_external_stresser()
                             time.sleep(1)
-                            print("Fix 4: Restarting leaky service...")
-                            self.start_external_stresser(scenario="leaky")
+                            print(f"Fix 4: Restarting {scenario} service...")
+                            self.start_external_stresser(scenario=scenario)
                             # Give it a moment to initialize
                             time.sleep(1)
                         
@@ -107,18 +108,25 @@ class ExperimentManager:
         # In a real experiment, we'd compare this to the time the system actually hits the threshold.
         return prediction
 
-    def run_comparison_suite(self):
+    def run_comparison_suite(self, duration=600, scenario="database"):
         """Runs both Baseline (Aging) and Managed (Rejuvenation) scenarios."""
         # 1. Baseline: Aging without help
-        self.run_accelerated_life_test(self.baseline_log, duration_sec=60, auto_fix=False)
+        self.run_accelerated_life_test(self.baseline_log, duration_sec=duration, auto_fix=False, scenario=scenario)
         
         # 2. Managed: Aging with rejuvenation
-        self.run_accelerated_life_test(self.managed_log, duration_sec=60, auto_fix=True)
+        self.run_accelerated_life_test(self.managed_log, duration_sec=duration, auto_fix=True, scenario=scenario)
         
         print("\n--- EXPERIMENT RESULTS ---")
         self.validate_predictive_accuracy(self.baseline_log)
         self.validate_predictive_accuracy(self.managed_log)
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Automated Software Aging Experiments")
+    parser.add_argument("--duration", type=int, default=600, help="Duration of each experiment in seconds")
+    parser.add_argument("--scenario", choices=["database", "leaky", "process", "default"], default="database", 
+                        help="Aging scenario to run")
+    args = parser.parse_args()
+    
     manager = ExperimentManager()
-    manager.run_comparison_suite()
+    manager.run_comparison_suite(duration=args.duration, scenario=args.scenario)

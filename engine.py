@@ -21,11 +21,11 @@ class DetectionEngine:
             iterations = config.BENCHMARK_ITERATIONS
         print("Running diagnostic memory benchmark (Refined)...")
         
-        # 1. Allocate 500 buffers of random sizes (4KB to 64KB)
-        num_buffers = 500
+        # 1. Allocate 2000 buffers of random sizes (64KB to 1MB)
+        num_buffers = 2000
         buffers = []
         for _ in range(num_buffers):
-            size = random.randint(4096, 65536)
+            size = random.randint(65536, 1048576)
             buffers.append(bytearray(os.urandom(size)))
         
         # 2. Randomly access them

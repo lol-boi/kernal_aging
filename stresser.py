@@ -137,5 +137,11 @@ class LeakingStresser:
         self.total_leaked_mb = 0
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Kernel Aging Stresser")
+    parser.add_argument("--scenario", choices=["default", "database", "process"], default="default", 
+                        help="Stress scenario to run")
+    args = parser.parse_args()
+    
     stresser = Stresser()
-    stresser.run_stress_cycle()
+    stresser.run_stress_cycle(scenario=args.scenario)
